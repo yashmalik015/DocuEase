@@ -4,20 +4,30 @@ import { Button } from './Button';
 import { Card, CardContent } from './Card';
 import { Badge } from './Badge';
 import { Sparkles, Loader2, FileText, Building, ShieldCheck } from 'lucide-react';
+import { complianceService } from '../../services/complianceService';
+import { authService } from '../../services/authService';
 
 export const AIAnalyzerModal = ({ isOpen, onClose, business }) => {
   const [stage, setStage] = useState('initial'); // initial, analyzing, results
+  const [analyzedDocs, setAnalyzedDocs] = useState([]);
   
   // Reset stage when modal opens
   useEffect(() => {
-    if (isOpen) setStage('initial');
+    if (isOpen) {
+      setStage('initial');
+      setAnalyzedDocs([]);
+    }
   }, [isOpen]);
 
-  const handleStartAnalysis = () => {
+  const handleStartAnalysis = async () => {
     setStage('analyzing');
-    setTimeout(() => {
-      setStage('results');
-    }, 3000);
+    const targetBizId = business?.id || authService.getActiveBusiness()?.id;
+    if (targetBizId) {
+      complianceService.refreshForBusiness(targetBizId);
+    }
+    const data = await complianceService.getAll(targetBizId);
+    setAnalyzedDocs(data);
+    setStage('results');
   };
 
   const renderContent = () => {
@@ -56,81 +66,16 @@ export const AIAnalyzerModal = ({ isOpen, onClose, business }) => {
         );
 
       case 'results': {
-        const isTech = business?.industry === 'IT / Software' || business?.activities?.includes('Provide services');
-        const isFood = business?.industry === 'Food & Beverage' || business?.activities?.includes('Handle food') || business?.activities?.includes('Process food');
+        const summaryText = `Analysis Complete. We found ${analyzedDocs.length} required compliance documents based on your business profile.`;
         
-        let docs = [];
-        let summaryText = '';
-
-        if (isTech) {
-          summaryText = `Based on your ${business?.industry || 'tech'} business${business?.city ? ` in ${business.city}` : ''}, we found 2 required documents you must prepare for data and software compliance.`;
-          docs = [
-            {
-              id: 'd1',
-              title: 'Data Privacy Policy & Terms of Service',
-              desc: 'Mandatory for SaaS and IT services handling user data under digital protection laws.',
-              badge: 'Required',
-              badgeVariant: 'Due Soon',
-              icon: <FileText size={20} />
-            },
-            {
-              id: 'd2',
-              title: 'Software License / SLA Agreement',
-              desc: 'Standard commercial agreement for B2B/B2C software distribution and uptime guarantees.',
-              badge: 'Action needed',
-              badgeVariant: 'Upcoming',
-              icon: <Building size={20} />
-            }
-          ];
-        } else if (isFood) {
-          summaryText = `Based on your ${business?.industry || 'food'} business${business?.city ? ` in ${business.city}` : ''}, we found 3 required documents you must prepare for health and safety compliance.`;
-          docs = [
-            {
-              id: 'd1',
-              title: 'FSSAI Central License Application',
-              desc: 'Required for food manufacturing/retail operations.',
-              badge: 'Required',
-              badgeVariant: 'Due Soon',
-              icon: <FileText size={20} />
-            },
-            {
-              id: 'd2',
-              title: 'GST Registration Amendment',
-              desc: 'Update required for new warehouse premises addition.',
-              badge: 'Action needed',
-              badgeVariant: 'Upcoming',
-              icon: <Building size={20} />
-            },
-            {
-              id: 'd3',
-              title: 'Fire Safety NOC',
-              desc: 'Mandatory clearance for commercial premises over 15 meters height.',
-              badge: 'Critical',
-              badgeVariant: 'At Risk',
-              icon: <ShieldCheck size={20} />
-            }
-          ];
-        } else {
-          summaryText = `Based on your ${business?.industry || 'business'} profile${business?.city ? ` in ${business.city}` : ''}, we found 2 required documents for general compliance.`;
-          docs = [
-            {
-              id: 'd1',
-              title: 'GST Registration',
-              desc: 'Mandatory for most businesses supplying goods or services over the threshold.',
-              badge: 'Required',
-              badgeVariant: 'Due Soon',
-              icon: <Building size={20} />
-            },
-            {
-              id: 'd2',
-              title: 'Shop & Establishment License',
-              desc: 'Required for all commercial establishments and offices.',
-              badge: 'Action needed',
-              badgeVariant: 'Upcoming',
-              icon: <FileText size={20} />
-            }
-          ];
-        }
+        const docs = analyzedDocs.map(c => ({
+          id: c.id,
+          title: c.title,
+          desc: c.category,
+          badge: 'Required',
+          badgeVariant: 'Due Soon',
+          icon: <FileText size={20} />
+        }));
 
         return (
           <div>

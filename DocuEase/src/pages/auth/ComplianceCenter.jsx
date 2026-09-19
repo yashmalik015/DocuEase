@@ -43,7 +43,10 @@ export const ComplianceCenter = () => {
         </Button>
       </div>
 
-      <AIAnalyzerModal isOpen={isAnalyzerOpen} onClose={() => setIsAnalyzerOpen(false)} />
+      <AIAnalyzerModal isOpen={isAnalyzerOpen} onClose={() => {
+        setIsAnalyzerOpen(false);
+        fetchData();
+      }} />
       <DocumentPreviewModal 
         isOpen={!!previewDocument} 
         onClose={() => setPreviewDocument(null)} 

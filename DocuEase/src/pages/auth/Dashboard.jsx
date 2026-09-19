@@ -86,7 +86,10 @@ export const Dashboard = () => {
       {/* AI Re-analyzer Simulation */}
       <AIAnalyzerModal 
         isOpen={isAIAnalyzerOpen} 
-        onClose={() => setIsAIAnalyzerOpen(false)} 
+        onClose={() => {
+          setIsAIAnalyzerOpen(false);
+          complianceService.getAll(activeBusiness?.id).then(data => setCompliances(data));
+        }} 
         business={activeBusiness}
       />
 
