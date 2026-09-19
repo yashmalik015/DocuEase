@@ -26,7 +26,7 @@ export const ComplianceDetailsModal = ({ isOpen, onClose, compliance, onGenerate
   const handleCreateDocument = async () => {
     setStage('fetching-schema');
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/generate-schema`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,7 @@ export const ComplianceDetailsModal = ({ isOpen, onClose, compliance, onGenerate
     setStage('generating');
     
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const API_BASE = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_BASE}/api/generate-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

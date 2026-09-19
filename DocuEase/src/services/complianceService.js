@@ -19,7 +19,7 @@ export const complianceService = {
            const business = authService.getBusinesses().find(b => b.id === targetBusinessId);
            
            try {
-             const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+             const API_BASE = import.meta.env.VITE_API_URL || '';
              const response = await fetch(`${API_BASE}/api/analyze-business`, {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
