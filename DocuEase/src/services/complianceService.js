@@ -23,26 +23,39 @@ export const complianceService = {
              const response = await fetch(`${API_BASE}/api/analyze-business`, {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(business || {})
+               body: JSON.stringify(business)
              });
              
-             if (!response.ok) throw new Error('Failed to analyze business');
+             if (!response.ok) {
+               const errData = await response.json().catch(() => ({}));
+               throw new Error(errData.error || `HTTP error ${response.status}`);
+             }
              
-             const generated = await response.json();
-             
-             // Ensure IDs are unique if backend didn't provide good ones
-             const finalGenerated = generated.map((item, index) => ({
-               ...item,
-               id: item.id || `c_gen_${Date.now()}_${index}`,
-               isDrafted: item.isDrafted || false
-             }));
-
-             allData[targetBusinessId] = finalGenerated;
-             localStorage.setItem(COMPLIANCES_KEY, JSON.stringify(allData));
+             const data = await response.json();
+             if (Array.isArray(data)) {
+               const finalGenerated = data.map((item, index) => ({
+                 ...item,
+                 id: item.id || `c_gen_${Date.now()}_${index}`,
+                 isDrafted: item.isDrafted || false
+               }));
+               allData[targetBusinessId] = finalGenerated;
+             } else {
+               allData[targetBusinessId] = [];
+             }
            } catch (err) {
              console.error("Backend AI Error:", err);
-             // Fallback if backend is down
-             allData[targetBusinessId] = [];
+             // Fallback if backend is down or errors out, show it in the UI!
+             allData[targetBusinessId] = [{
+               id: 'error-' + Date.now(),
+               title: 'System Error: Analysis Failed',
+               category: 'Error',
+               status: 'At Risk',
+               deadline: new Date().toISOString().split('T')[0],
+               priority: 'High',
+               description: err.message,
+               applicabilityReason: 'Please ensure GEMINI_API_KEY is added to Vercel Environment Variables and deployed.',
+               isDrafted: false
+             }];
            }
         }
         resolve(allData[targetBusinessId]);

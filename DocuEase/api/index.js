@@ -6,10 +6,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let ai = null;
+try {
+  if (process.env.GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+} catch (e) {
+  console.error("Failed to init GenAI:", e);
+}
 
 // POST /api/analyze-business
 app.post('/api/analyze-business', async (req, res) => {
+  if (!ai) {
+    return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not set or invalid in Vercel." });
+  }
   try {
     const business = req.body;
     
@@ -102,6 +112,10 @@ Ensure the document is professional, well-structured, and sounds like a legitima
     console.error('Error generating document:', error);
     res.status(500).json({ error: 'Failed to generate document text' });
   }
+});
+
+app.all('*', (req, res) => {
+  res.status(404).json({ error: `API Route not found on Vercel. Received path: ${req.url} or ${req.originalUrl}` });
 });
 
 module.exports = app;
