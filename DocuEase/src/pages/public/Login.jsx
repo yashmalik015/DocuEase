@@ -20,10 +20,9 @@ export const Login = () => {
     
     try {
       await authService.login(email, password);
-      // We could save userType here if backend supported it
       navigate('/businesses');
     } catch (err) {
-      setError('Invalid credentials. Password must be at least 6 characters.');
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

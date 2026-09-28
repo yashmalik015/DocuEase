@@ -1,22 +1,38 @@
 const express = require('express');
 const cors = require('cors');
-const os = require('os');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
 
-require('dotenv').config({ path: path.join(os.homedir(), '.env') });
+// Load env from server/.env (not the home dir, so secrets stay per-project).
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const { connectDB } = require('./db');
+const authRoutes = require('./routes/auth');
 
 const app = express();
-app.use(cors());
+
+// Only allow the frontend origin(s) to call this API, instead of everyone.
+// Accepts CORS_ORIGINS (comma-separated) or the older CORS_ORIGIN.
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
+
+// ---- Auth routes (signup / login / me) ----
+app.use('/api/auth', authRoutes);
 
 // POST /api/analyze-business
 app.post('/api/analyze-business', async (req, res) => {
+  if (!ai) return res.status(500).json({ error: 'AI is not configured' });
   try {
     const business = req.body;
-    
+
     const prompt = `You are a compliance AI assistant for DocuEase.
 Given the following business profile, output a strict JSON array of required compliance documents (between 2 to 4 items).
 The business profile is: ${JSON.stringify(business)}
@@ -37,13 +53,10 @@ Output ONLY valid JSON array without markdown code blocks.`;
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
+      config: { responseMimeType: 'application/json' },
     });
 
-    const data = JSON.parse(response.text);
-    res.json(data);
+    res.json(JSON.parse(response.text));
   } catch (error) {
     console.error('Error analyzing business:', error);
     res.status(500).json({ error: 'Failed to analyze business' });
@@ -52,10 +65,11 @@ Output ONLY valid JSON array without markdown code blocks.`;
 
 // POST /api/generate-schema
 app.post('/api/generate-schema', async (req, res) => {
+  if (!ai) return res.status(500).json({ error: 'AI is not configured' });
   try {
     const { documentTitle } = req.body;
-    
-    const prompt = `You are a legal form schema generator. 
+
+    const prompt = `You are a legal form schema generator.
 We need a JSON schema describing the form fields required to draft a document titled: "${documentTitle}".
 
 Return a strict JSON object with this structure:
@@ -71,13 +85,10 @@ Include 4 to 6 relevant fields. Output ONLY valid JSON without markdown code blo
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
+      config: { responseMimeType: 'application/json' },
     });
 
-    const data = JSON.parse(response.text);
-    res.json(data);
+    res.json(JSON.parse(response.text));
   } catch (error) {
     console.error('Error generating schema:', error);
     res.status(500).json({ error: 'Failed to generate schema' });
@@ -86,10 +97,11 @@ Include 4 to 6 relevant fields. Output ONLY valid JSON without markdown code blo
 
 // POST /api/generate-document
 app.post('/api/generate-document', async (req, res) => {
+  if (!ai) return res.status(500).json({ error: 'AI is not configured' });
   try {
     const { documentTitle, formData } = req.body;
-    
-    const prompt = `You are an expert legal drafter. 
+
+    const prompt = `You are an expert legal drafter.
 Please draft the content for a legal document titled: "${documentTitle}".
 Use the following provided information to populate the document:
 ${JSON.stringify(formData, null, 2)}
@@ -98,7 +110,7 @@ Ensure the document is professional, well-structured, and sounds like a legitima
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt
+      contents: prompt,
     });
 
     res.json({ documentText: response.text });
@@ -109,6 +121,10 @@ Ensure the document is professional, well-structured, and sounds like a legitima
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`DocuEase AI Backend running on port ${PORT}`);
+
+// Connect to MongoDB first, then start listening.
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`DocuEase AI Backend running on port ${PORT}`);
+  });
 });

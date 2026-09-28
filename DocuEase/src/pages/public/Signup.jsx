@@ -30,24 +30,25 @@ export const Signup = () => {
       setError('Passwords do not match');
       return;
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
     setLoading(true);
-    
+
     try {
       await authService.signup({
         name: formData.name,
         email: formData.email,
+        password: formData.password,
         businessName: userType === 'business' ? formData.businessName : 'Professional Practice',
         role: userType
       });
       // Redirect to business selector
       navigate('/businesses');
     } catch (err) {
-      setError('Error creating account.');
+      setError(err.message || 'Error creating account.');
     } finally {
       setLoading(false);
     }
